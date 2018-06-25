@@ -30,6 +30,8 @@ namespace RogueLike
         public DoorType doorType = DoorType.Normal;
         public Transform transform;
         public Vector3 position;
+        //position that transport from the other door
+        public Vector3 transportPos;
         public DoorNode associateDoor = null;
         public Grid grid = null;
 

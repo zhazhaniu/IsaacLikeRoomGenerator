@@ -20,6 +20,9 @@ namespace RogueLike
     public class Data
     {
         public static Vector2 GridSize = new Vector2(12.80f, 7.20f);
+        public static Vector2 GroundSize = new Vector2(10.2f, 5.4f);
+        public static float DoorHeight = 1.2f;
+
         public static Dictionary<DoorType, string> doorRes = new Dictionary<DoorType, string>()
         {
             {DoorType.Normal, "Doors/NormalDoor" },

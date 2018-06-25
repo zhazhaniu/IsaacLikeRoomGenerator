@@ -13,6 +13,7 @@ namespace RogueLike
     [System.Serializable]
     public class RoomNode
     {
+        public int index = -1;
         public RoomType roomType = RoomType.Normal;
         public bool[,] gridDesc;
         public List<Grid> gridList = new List<Grid>();

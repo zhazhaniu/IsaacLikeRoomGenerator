@@ -5,7 +5,7 @@ using UnityEngine;
 
 namespace RogueLike
 {
-    
+
     public class Grid
     {
         //mark of this grid has been searched
@@ -14,10 +14,10 @@ namespace RogueLike
         public RoomNode owner = null;
         public Vector2Int index;
 
-        public DoorNode upDoor      = new DoorNode();
-        public DoorNode downDoor    = new DoorNode();
-        public DoorNode leftDoor    = new DoorNode();
-        public DoorNode rightDoor   = new DoorNode();
+        public DoorNode upDoor = new DoorNode();
+        public DoorNode downDoor = new DoorNode();
+        public DoorNode leftDoor = new DoorNode();
+        public DoorNode rightDoor = new DoorNode();
 
         public Grid()
         {
@@ -118,7 +118,7 @@ namespace RogueLike
             return info;
         }
 
-        
+
 
         public void StartGenerate(int x, int y, Vector3 basePosition)
         {
@@ -150,10 +150,18 @@ namespace RogueLike
                     grid.index = new Vector2Int(row, col);
                     grids[row, col] = grid;
                     grid.position = basePosition + new Vector3((col - 1) * Data.GridSize.x, -(row - 1) * Data.GridSize.y, 0);
-                    grid.upDoor.position = grid.position + new Vector3(0, Data.GridSize.y * 0.5f, 0);
-                    grid.downDoor.position = grid.position + new Vector3(0, -Data.GridSize.y * 0.5f, 0);
-                    grid.leftDoor.position = grid.position + new Vector3(-Data.GridSize.x * 0.5f, 0, 0);
-                    grid.rightDoor.position = grid.position + new Vector3(Data.GridSize.x * 0.5f, 0, 0);
+
+                    //door pos
+                    grid.upDoor.position = grid.position + new Vector3(0, Data.GroundSize.y * 0.5f + Data.DoorHeight * 0.5f, 0);
+                    grid.downDoor.position = grid.position + new Vector3(0, -Data.GroundSize.y * 0.5f - Data.DoorHeight * 0.5f, 0);
+                    grid.leftDoor.position = grid.position + new Vector3(-Data.GroundSize.x * 0.5f - Data.DoorHeight * 0.5f, 0, 0);
+                    grid.rightDoor.position = grid.position + new Vector3(Data.GroundSize.x * 0.5f + Data.DoorHeight * 0.5f, 0, 0);
+
+                    //door transport pos
+                    grid.upDoor.transportPos = grid.upDoor.position - new Vector3(0, 0.6f, 0);
+                    grid.downDoor.transportPos = grid.downDoor.position + new Vector3(0, 0.6f, 0);
+                    grid.leftDoor.transportPos = grid.leftDoor.position + new Vector3(0.6f, 0, 0);
+                    grid.rightDoor.transportPos = grid.rightDoor.position - new Vector3(0.6f, 0, 0);
                 }
             }
 
@@ -179,6 +187,7 @@ namespace RogueLike
                 GenerateAt(genTask.x, genTask.y, genTask.depth);
             }
             AssociateDoors();
+            SetRoomIndex();
         }
 
         int GenerateAt(int x, int y, int depth)
@@ -313,6 +322,14 @@ namespace RogueLike
                 result[idxA] = tmp;
             }
             return result;
+        }
+
+        void SetRoomIndex()
+        {
+            for (int i = 0; i < roomList.Count; ++i)
+            {
+                roomList[i].index = i;
+            }
         }
     } //RoomGenerator
 
