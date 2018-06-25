@@ -4,14 +4,18 @@ using UnityEditor;
 using UnityEngine;
 using RogueLike;
 
-public class ResLoader
+namespace RogueLike
 {
-    public static GameObject LoadGameObject(string path)
+    public class ResLoader
     {
-        GameObject go = Resources.Load<GameObject>(path);
-        return GameObject.Instantiate(go);
+        public static GameObject LoadGameObject(string path)
+        {
+            GameObject go = Resources.Load<GameObject>(path);
+            return GameObject.Instantiate(go);
+        }
     }
 }
+
 public class TestGenerator : MonoBehaviour {
     RoomGenerator rg = new RoomGenerator();
     int genIndex = 0;
@@ -39,7 +43,7 @@ public class TestGenerator : MonoBehaviour {
             case DoorType.None:
                 break;
             default:
-                GameObject go = ResLoader.LoadGameObject(Data.doorRes[door.doorType]);
+                GameObject go = RogueLike.ResLoader.LoadGameObject(RogueLike.Data.doorRes[door.doorType]);
                 door.transform = go.transform;
                 go.transform.SetParent(parent);
                 go.transform.position = door.position;
@@ -58,7 +62,7 @@ public class TestGenerator : MonoBehaviour {
             if (genIndex < rg.roomList.Count)
             {
                 var room = rg.roomList[genIndex++];
-                var go = ResLoader.LoadGameObject(room.GetPath());
+                var go = RogueLike.ResLoader.LoadGameObject(room.GetPath());
                 go.AddComponent<RoomInspector>().roomData = room;
                 room.transform = go.transform;
                 room.transform.position = room.position;
