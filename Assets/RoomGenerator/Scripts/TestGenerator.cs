@@ -19,15 +19,22 @@ namespace RogueLike
 public class TestGenerator : MonoBehaviour {
     RoomGenerator rg = new RoomGenerator();
     int genIndex = 0;
-    RogueLike.RoomGenerateLimit generateLimit = new RoomGenerateLimit();
+    RogueLike.RoomGenerateParam generateConfig = new RoomGenerateParam();
     
     void Start () {
-        generateLimit.normalRoomCount = 10;
-        generateLimit.bossRoomCount = 1;
-        generateLimit.randomCutAtDeep = 3;
-        generateLimit.cutParam = 3;
+        generateConfig.normalRoomCount = 10;
+        generateConfig.bossRoomCount = 1;
+        generateConfig.randomCutAtDeep = 3;
+        generateConfig.cutParam = 3;
+        //pools
+        generateConfig.normalPools = Data.normalPools;
+        generateConfig.hiddenRoomPools = Data.hiddenRoomPools;
+        generateConfig.rewardRoomPools = Data.rewardRoomPools;
+        generateConfig.shopRoomPools = Data.shopRoomPools;
+        generateConfig.bossRoomPools = Data.bossRoomPools;
 
-        rg.generateConfig = generateLimit;
+
+        rg.generateConfig = generateConfig;
         rg.MapSize = new Vector2Int(32, 32);
         rg.StartGenerate(15, 15, Vector3.zero);
 	}
@@ -66,7 +73,7 @@ public class TestGenerator : MonoBehaviour {
                 go.AddComponent<RoomInspector>().roomData = room;
                 room.transform = go.transform;
                 room.transform.position = room.position;
-                RandomRoomColor(go, room.roomType);
+                SetRoomColor(go, room.roomType);
 
                 for (int i = 0; i < room.gridList.Count; ++i)
                 {
@@ -81,7 +88,7 @@ public class TestGenerator : MonoBehaviour {
         }
 	}
 
-    void RandomRoomColor(GameObject go, RoomType roomType)
+    void SetRoomColor(GameObject go, RoomType roomType)
     {
         Color c = new Color(Random.Range(0.3f, 1f), Random.Range(0.3f, 1f), Random.Range(0.3f, 1f));
         if (roomType == RoomType.Init)
@@ -91,6 +98,26 @@ public class TestGenerator : MonoBehaviour {
         else if (roomType == RoomType.Boss)
         {
             c = Color.black;
+        }
+        else if (roomType == RoomType.Normal)
+        {
+            c = Color.yellow + new Color(Random.Range(-0.1f, 0.1f), Random.Range(-0.1f, 0.1f), Random.Range(-0.1f, 0.1f));
+        }
+        else if (roomType == RoomType.Shop)
+        {
+            c = Color.green;
+        }
+        else if (roomType == RoomType.Reward)
+        {
+            c = new Color(0.8f, 0.45f, 0.65f);
+        }
+        else if (roomType == RoomType.Hidden)
+        {
+            c = Color.gray;
+        }
+        else
+        {
+            c = Color.red;
         }
 
         SpriteRenderer[] sr = go.GetComponentsInChildren<SpriteRenderer>();

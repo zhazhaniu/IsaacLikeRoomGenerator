@@ -6,188 +6,10 @@ using UnityEngine;
 namespace RogueLike
 {
     
-
-    public enum DoorType
-    {
-        //close by room, or no room can associate
-        None,
-        Normal,
-        Hidden,
-        SuperHidden,
-        Boss,
-        Shop,
-        Reward,
-        Challenge,
-    }
-
-    public class DoorInspector : MonoBehaviour
-    {
-        [SerializeField]
-        public DoorNode doorData = null;
-    }
-
-    [Serializable]
-    public class DoorNode
-    {
-        //common, hidden, boss, etc...
-        public DoorType doorType = DoorType.Normal;
-        public Transform transform;
-        public Vector3 position;
-        public DoorNode associateDoor = null;
-        public Grid grid = null;
-
-        public void Associate(DoorNode otherDoor)
-        {
-            associateDoor = otherDoor;
-            otherDoor.associateDoor = this;
-            if (otherDoor.grid.owner.roomType == RoomType.Boss)
-            {
-                doorType = DoorType.Boss;
-            }
-        }
-    }
-
-    public class RoomInspector : MonoBehaviour
-    {
-        [SerializeField]
-        public RoomNode roomData = null;
-    }
-
-    [Serializable]
-    public class RoomNode
-    {
-        public RoomType roomType = RoomType.Normal;
-        public bool[,] gridDesc;
-        public List<Grid> gridList = new List<Grid>();
-        public Transform transform;
-        public Vector3 position;
-
-        public virtual string GetPath()
-        {
-            return "";
-        }
-
-        public bool BeyondBossRoom(int x, int y, RoomGenerator generator)
-        {
-            int rowCount = gridDesc.GetLength(0);
-            int colCount = gridDesc.GetLength(1);
-            for (int i = 0; i < rowCount; ++i)
-            {
-                for (int j = 0; j < colCount; ++j)
-                {
-                    if (gridDesc[i, j])
-                    {
-                        var up = generator.GetGrid(x + i, y + j + 1);
-                        if (up != null && up.owner != null && up.owner.roomType == RoomType.Boss)
-                        {
-                            return true;
-                        }
-
-                        var down = generator.GetGrid(x + i, y + j - 1);
-                        if (down != null && down.owner != null && down.owner.roomType == RoomType.Boss)
-                        {
-                            return true;
-                        }
-
-                        var left = generator.GetGrid(x + i - 1, y + j);
-                        if (left != null && left.owner != null && left.owner.roomType == RoomType.Boss)
-                        {
-                            return true;
-                        }
-                        var right = generator.GetGrid(x + i + 1, y + j);
-                        if (right != null && right.owner != null && right.owner.roomType == RoomType.Boss)
-                        {
-                            return true;
-                        }
-                    }
-                }
-            }
-
-            return false;
-        }
-
-        public bool IsFitSize(int x, int y, RoomGenerator generator)
-        {
-            int rowCount = gridDesc.GetLength(0);
-            int colCount = gridDesc.GetLength(1);
-            for (int i = 0; i < rowCount; ++i)
-            {
-                for (int j = 0; j < colCount; ++j)
-                {
-                    if (gridDesc[i, j])
-                    {
-                        var grid = generator.GetGrid(x + i , y + j);
-                        if (grid == null || grid.owner != null)
-                        {
-                            return false;
-                        }
-                    }
-                }
-            }
-
-            return true;
-        }
-
-        void ApplyRoom(int x, int y, RoomGenerator generator)
-        {
-            int rowCount = gridDesc.GetLength(0);
-            int colCount = gridDesc.GetLength(1);
-            for (int i = 0; i < rowCount; ++i)
-            {
-                for (int j = 0; j < colCount; ++j)
-                {
-                    if (gridDesc[i, j])
-                    {
-                        var grid = generator.GetGrid(x + i, y + j);
-                        grid.owner = this;
-                        gridList.Add(grid);
-                    }
-                }
-            }
-        }
-
-        public bool TryPutRoom(int x, int y, RoomGenerator generator)
-        {
-            int rowCount = gridDesc.GetLength(0);
-            int colCount = gridDesc.GetLength(1);
-            for (int offsetX = 0; offsetX < rowCount; ++offsetX)
-            {
-                for (int offsetY = 0; offsetY < colCount; ++offsetY)
-                {
-                    //x,y must be filled with a non-empty grid
-                    if (gridDesc[offsetX, offsetY] && IsFitSize(x - offsetX, y - offsetY, generator) && !BeyondBossRoom(x - offsetX, y - offsetY, generator))
-                    {
-                        ApplyRoom(x - offsetX, y - offsetY, generator);
-                        return true;
-                    }
-                }
-            }
-
-            return false;
-        }
-
-        //return is there exist an offset of gridDesc, can place the room
-        public bool Place(int x, int y, RoomGenerator generator)
-        {
-            return TryPutRoom(x, y, generator);
-        }
-
-        
-        public virtual void SetPosition(Vector3 pos)
-        {
-            position = pos;
-        }
-
-        //some rooms may be in special shape
-        public virtual void MarkUnborderDoors()
-        {
-
-        }
-    }
-
     public class Grid
     {
-        public bool inSteping = false;
+        //mark of this grid has been searched
+        public bool steped = false;
         public Vector3 position;
         public RoomNode owner = null;
         public Vector2Int index;
@@ -204,18 +26,6 @@ namespace RogueLike
             leftDoor.grid = this;
             rightDoor.grid = this;
         }
-    }
-
-    public struct RoomGenerateLimit
-    {
-        public int normalRoomCount;
-        public int bossRoomCount;
-        public int shopRoomCount;
-        public int hiddenRoomCount;
-        public int rewardRoomCount;
-        //random rnd = [1, deep], cut current branch when rnd < curParam
-        public int randomCutAtDeep;
-        public int cutParam;
     }
 
     public struct RoomGenerateInfo
@@ -239,59 +49,11 @@ namespace RogueLike
         int usedGrid = 0;
         int maxUseGrid = 30;
 
-        public RoomGenerateLimit generateConfig;
-        RoomGenerateLimit generatedInfo;
+        public RoomGenerateParam generateConfig;
+        RoomGenerateParam curGenerateInfo;
 
         //Mix DFS & BFS
         List<SuspendTask> suspendTask = new List<SuspendTask>();
-
-        public RoomGenerateInfo RandomOneRoom()
-        {
-            RoomGenerateInfo info = new RoomGenerateInfo();
-            info.ty = null;
-            info.roomType = RoomType.Normal;
-
-            List<Type> pools = null;
-
-            if (generateConfig.normalRoomCount > generatedInfo.normalRoomCount)
-            {
-                ++generatedInfo.normalRoomCount;
-                pools = Data.normalPools;
-            }
-            else if (generateConfig.bossRoomCount > generatedInfo.bossRoomCount)
-            {
-                ++generatedInfo.bossRoomCount;
-                pools = Data.bossRoomPools;
-                info.roomType = RoomType.Boss;
-            }
-            else if (generateConfig.hiddenRoomCount > generatedInfo.hiddenRoomCount)
-            {
-                ++generatedInfo.hiddenRoomCount;
-                pools = Data.hiddenRoomPools;
-                info.roomType = RoomType.Hidden;
-            }
-            else if (generateConfig.rewardRoomCount > generatedInfo.rewardRoomCount)
-            {
-                ++generatedInfo.rewardRoomCount;
-                pools = Data.rewardRoomPools;
-                info.roomType = RoomType.Reward;
-            }
-            else if (generateConfig.shopRoomCount > generatedInfo.shopRoomCount)
-            {
-                ++generatedInfo.shopRoomCount;
-                pools = Data.shopRoomPools;
-                info.roomType = RoomType.Shop;
-            }
-
-            if (pools != null)
-            {
-                int rnd = UnityEngine.Random.Range(0, pools.Count);
-                info.ty = pools[rnd];
-            }
-
-
-            return info;
-        }
 
         public bool IsValidIndex(int x, int y)
         {
@@ -308,6 +70,56 @@ namespace RogueLike
             return grids[x, y];
         }
 
+        public RoomGenerateInfo RandomOneRoom()
+        {
+            RoomGenerateInfo info = new RoomGenerateInfo();
+            info.ty = null;
+            info.roomType = RoomType.Normal;
+
+            List<Type> pools = null;
+
+            if (generateConfig.normalRoomCount > curGenerateInfo.normalRoomCount)
+            {
+                ++curGenerateInfo.normalRoomCount;
+                pools = generateConfig.normalPools;
+            }
+            else if (generateConfig.bossRoomCount > curGenerateInfo.bossRoomCount)
+            {
+                ++curGenerateInfo.bossRoomCount;
+                pools = generateConfig.bossRoomPools;
+                info.roomType = RoomType.Boss;
+            }
+            else if (generateConfig.hiddenRoomCount > curGenerateInfo.hiddenRoomCount)
+            {
+                ++curGenerateInfo.hiddenRoomCount;
+                pools = generateConfig.hiddenRoomPools;
+                info.roomType = RoomType.Hidden;
+            }
+            else if (generateConfig.rewardRoomCount > curGenerateInfo.rewardRoomCount)
+            {
+                ++curGenerateInfo.rewardRoomCount;
+                pools = generateConfig.rewardRoomPools;
+                info.roomType = RoomType.Reward;
+            }
+            else if (generateConfig.shopRoomCount > curGenerateInfo.shopRoomCount)
+            {
+                ++curGenerateInfo.shopRoomCount;
+                pools = generateConfig.shopRoomPools;
+                info.roomType = RoomType.Shop;
+            }
+
+            if (pools != null)
+            {
+                int rnd = UnityEngine.Random.Range(0, pools.Count);
+                info.ty = pools[rnd];
+            }
+
+
+            return info;
+        }
+
+        
+
         public void StartGenerate(int x, int y, Vector3 basePosition)
         {
             if (!IsValidIndex(x, y))
@@ -316,13 +128,13 @@ namespace RogueLike
                 return;
             }
 
-            if (MapSize.x > 100 || MapSize.x < 0 || MapSize.y > 100 || MapSize.y < 0)
+            if (MapSize.x > 256 || MapSize.x < 0 || MapSize.y > 256 || MapSize.y < 0)
             {
                 Debug.LogError("MapSize is invalid");
                 return;
             }
 
-            generatedInfo = new RoomGenerateLimit();
+            curGenerateInfo = new RoomGenerateParam();
             roomList.Clear();
             usedGrid = 0;
 
@@ -390,11 +202,11 @@ namespace RogueLike
             }
 
             Grid grid = grids[x, y];
-            if (grid.inSteping)
+            if (grid.steped)
             {
                 return 0;
             }
-            grid.inSteping = true;
+            grid.steped = true;
 
             if (grid.owner == null)
             {
