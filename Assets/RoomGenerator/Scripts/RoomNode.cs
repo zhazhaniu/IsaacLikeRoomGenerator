@@ -64,6 +64,89 @@ namespace RogueLike
             return false;
         }
 
+        public bool IsSingleConnected(int x, int y, RoomGenerator generator)
+        {
+            int connectCount = 0;
+            int rowCount = gridDesc.GetLength(0);
+            int colCount = gridDesc.GetLength(1);
+            for (int i = 0; i < rowCount; ++i)
+            {
+                for (int j = 0; j < colCount; ++j)
+                {
+                    if (gridDesc[i, j])
+                    {
+                        var up = generator.GetGrid(x + i, y + j + 1);
+                        
+                        if (up != null && up.owner != null && up.owner != this)
+                        {
+                            ++connectCount;
+                        }
+
+                        var down = generator.GetGrid(x + i, y + j - 1);
+                        if (down != null && down.owner != null && down.owner != this)
+                        {
+                            ++connectCount;
+                        }
+
+                        var left = generator.GetGrid(x + i - 1, y + j);
+                        if (left != null && left.owner != null && left.owner != this)
+                        {
+                            ++connectCount;
+                        }
+
+                        var right = generator.GetGrid(x + i + 1, y + j);
+                        if (right != null && right.owner != null && right.owner != this)
+                        {
+                            ++connectCount;
+                        }
+                    }
+                }
+            }
+
+            return connectCount == 1;
+        }
+
+        bool IsConnectToRooms(int x, int y, RoomGenerator generator, HashSet<RoomType> roomTypes)
+        {
+            int rowCount = gridDesc.GetLength(0);
+            int colCount = gridDesc.GetLength(1);
+            for (int i = 0; i < rowCount; ++i)
+            {
+                for (int j = 0; j < colCount; ++j)
+                {
+                    if (gridDesc[i, j])
+                    {
+                        var up = generator.GetGrid(x + i, y + j + 1);
+
+                        if (up != null && up.owner != null && roomTypes.Contains(up.owner.roomType))
+                        {
+                            return true;
+                        }
+
+                        var down = generator.GetGrid(x + i, y + j - 1);
+                        if (down != null && down.owner != null && roomTypes.Contains(down.owner.roomType))
+                        {
+                            return true;
+                        }
+
+                        var left = generator.GetGrid(x + i - 1, y + j);
+                        if (left != null && left.owner != null && roomTypes.Contains(left.owner.roomType))
+                        {
+                            return true;
+                        }
+
+                        var right = generator.GetGrid(x + i + 1, y + j);
+                        if (right != null && right.owner != null && roomTypes.Contains(right.owner.roomType))
+                        {
+                            return true;
+                        }
+                    }
+                }
+            }
+
+            return false;
+        }
+
         public bool IsFitSize(int x, int y, RoomGenerator generator)
         {
             int rowCount = gridDesc.GetLength(0);
@@ -86,6 +169,17 @@ namespace RogueLike
             return true;
         }
 
+        public void Revert()
+        {
+            for (int i = 0; i < gridList.Count; ++i)
+            {
+                var grid = gridList[i];
+                grid.owner = null;
+            }
+
+            gridList = new List<Grid>();
+        }
+
         void ApplyRoom(int x, int y, RoomGenerator generator)
         {
             int rowCount = gridDesc.GetLength(0);
@@ -104,7 +198,8 @@ namespace RogueLike
             }
         }
 
-        public bool TryPutRoom(int x, int y, RoomGenerator generator)
+        //return is there exist an offset of gridDesc, can place the room
+        public bool Place(int x, int y, RoomGenerator generator, bool singleConnected = false, HashSet<RoomType> avoidConnectRoom = null)
         {
             int rowCount = gridDesc.GetLength(0);
             int colCount = gridDesc.GetLength(1);
@@ -113,8 +208,18 @@ namespace RogueLike
                 for (int offsetY = 0; offsetY < colCount; ++offsetY)
                 {
                     //x,y must be filled with a non-empty grid
-                    if (gridDesc[offsetX, offsetY] && IsFitSize(x - offsetX, y - offsetY, generator) && !BeyondBossRoom(x - offsetX, y - offsetY, generator))
+                    if (gridDesc[offsetX, offsetY] && IsFitSize(x - offsetX, y - offsetY, generator))
                     {
+                        if (singleConnected && !IsSingleConnected(x - offsetX, y - offsetY, generator))
+                        {
+                            continue;
+                        }
+
+                        if (avoidConnectRoom != null && IsConnectToRooms(x, y, generator, avoidConnectRoom))
+                        {
+                            continue;
+                        }
+
                         ApplyRoom(x - offsetX, y - offsetY, generator);
                         return true;
                     }
@@ -122,12 +227,6 @@ namespace RogueLike
             }
 
             return false;
-        }
-
-        //return is there exist an offset of gridDesc, can place the room
-        public bool Place(int x, int y, RoomGenerator generator)
-        {
-            return TryPutRoom(x, y, generator);
         }
 
 

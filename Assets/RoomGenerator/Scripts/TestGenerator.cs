@@ -25,11 +25,16 @@ namespace RogueLike
         {
             generateConfig.normalRoomCount = 10;
             generateConfig.bossRoomCount = 1;
-            generateConfig.randomCutAtDeep = 3;
+            generateConfig.shopRoomCount = 1;
+            generateConfig.rewardRoomCount = 1;
+            generateConfig.hiddenRoomCount = 1;
+            generateConfig.spHiddenRoomCount = 1;
+            generateConfig.randomCutAtDeep = 5;
             generateConfig.cutParam = 3;
             //pools
             generateConfig.normalPools = Data.normalPools;
             generateConfig.hiddenRoomPools = Data.hiddenRoomPools;
+            generateConfig.spHiddenRoomPools = Data.hiddenRoomPools;
             generateConfig.rewardRoomPools = Data.rewardRoomPools;
             generateConfig.shopRoomPools = Data.shopRoomPools;
             generateConfig.bossRoomPools = Data.bossRoomPools;
@@ -37,6 +42,7 @@ namespace RogueLike
 
             rg.generateConfig = generateConfig;
             rg.MapSize = new Vector2Int(32, 32);
+            rg.SetSeed("OZOZ".GetHashCode());
             rg.StartGenerate(15, 15, Vector3.zero);
         }
 
@@ -115,6 +121,10 @@ namespace RogueLike
             else if (roomType == RoomType.Hidden)
             {
                 c = Color.gray;
+            }
+            else if (roomType == RoomType.SuperHidden)
+            {
+                c = Color.cyan;
             }
             else
             {

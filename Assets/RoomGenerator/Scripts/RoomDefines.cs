@@ -54,17 +54,17 @@ namespace RogueLike
 
         public static List<Type> shopRoomPools = new List<Type>()
         {
-            typeof(Room_L_0111),
+            typeof(Room_1X1),
         };
 
         public static List<Type> rewardRoomPools = new List<Type>()
         {
-            typeof(Room_L_0111),
+            typeof(Room_1X1),
         };
 
         public static List<Type> hiddenRoomPools = new List<Type>()
         {
-            typeof(Room_L_0111),
+            typeof(Room_1X1),
         };
     }
 

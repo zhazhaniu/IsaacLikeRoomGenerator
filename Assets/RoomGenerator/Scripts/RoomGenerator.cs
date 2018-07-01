@@ -41,7 +41,7 @@ namespace RogueLike
         public int depth;
     }
 
-    public class RoomGenerator
+    public partial class RoomGenerator
     {
         public Vector2Int MapSize = new Vector2Int(16, 16);
         public Grid[,] grids = null;
@@ -54,6 +54,22 @@ namespace RogueLike
 
         //Mix DFS & BFS
         List<SuspendTask> suspendTask = new List<SuspendTask>();
+        System.Random random = null;
+
+        public RoomGenerator()
+        {
+            SetSeed(DateTime.Now.Second + DateTime.Now.Millisecond);
+        }
+
+        public void SetSeed(int seed)
+        {
+            random = new System.Random(seed);
+        }
+
+        int Random(int min, int max)
+        {
+            return random.Next(min, max);
+        }
 
         public bool IsValidIndex(int x, int y)
         {
@@ -70,70 +86,118 @@ namespace RogueLike
             return grids[x, y];
         }
 
-        public RoomGenerateInfo RandomOneRoom()
+        Grid GetEmptyGrid(int x, int y)
         {
+            Grid g = GetGrid(x, y);
+            if (g != null && g.owner == null)
+            {
+                return g;
+            }
+
+            return null;
+        }
+
+        //Add all empty grid beyond the grid
+        void AddEmptyGridToList(List<Grid> list, Grid grid)
+        {
+            if (grid == null)
+            {
+                return;
+            }
+
+            Grid up = GetEmptyGrid(grid.index.x, grid.index.y + 1);
+            Grid down = GetEmptyGrid(grid.index.x, grid.index.y - 1);
+            Grid left = GetEmptyGrid(grid.index.x - 1, grid.index.y);
+            Grid right = GetEmptyGrid(grid.index.x + 1, grid.index.y);
+
+            if (up != null) list.Add(up);
+            if (down != null) list.Add(down);
+            if (left != null) list.Add(left);
+            if (right != null) list.Add(right);
+        }
+
+        void AddNearRoomToHSet(HashSet<RoomNode> hset, Grid grid)
+        {
+            if (grid == null)
+            {
+                return;
+            }
+
+            Grid up = GetGrid(grid.index.x, grid.index.y + 1);
+            Grid down = GetGrid(grid.index.x, grid.index.y - 1);
+            Grid left = GetGrid(grid.index.x - 1, grid.index.y);
+            Grid right = GetGrid(grid.index.x + 1, grid.index.y);
+
+            if (up != null && up.owner != null && !hset.Contains(up.owner)) hset.Add(up.owner);
+            if (down != null && down.owner != null && !hset.Contains(down.owner)) hset.Add(down.owner);
+            if (left != null && left.owner != null && !hset.Contains(left.owner)) hset.Add(left.owner);
+            if (right != null && right.owner != null && !hset.Contains(right.owner)) hset.Add(right.owner);
+        }
+
+        //Get all empty grid beyond the room
+        List<Grid> GetOutsideEmptyGrid(RoomNode room)
+        {
+            List<Grid> list = new List<Grid>();
+            for (int i = 0; i < room.gridList.Count; ++i)
+            {
+                var grid = room.gridList[i];
+                AddEmptyGridToList(list, grid);
+            }
+            return list;
+        }
+
+        //Get all empty grid beyond rooms (exclude the special room)
+        List<Grid> GetConnectableGrids()
+        {
+            List<Grid> list = new List<Grid>();
+            for (int i = 0; i < roomList.Count; ++i)
+            {
+                var room = roomList[i];
+                if (room.roomType == RoomType.Normal)
+                {
+                    var tmpList = GetOutsideEmptyGrid(room);
+                    list.AddRange(tmpList);
+                }
+            }
+
+            return list;
+        }
+
+        HashSet<RoomNode> GetConnectedRoom(RoomNode room)
+        {
+            HashSet<RoomNode> hset = new HashSet<RoomNode>();
+            for (int i = 0; i < room.gridList.Count; ++i)
+            {
+                var grid = room.gridList[i];
+                AddNearRoomToHSet(hset, grid);
+            }
+            return hset;
+        }
+
+        public RoomGenerateInfo RandomFightRoom()
+        {
+            List<Type> pools = null;
             RoomGenerateInfo info = new RoomGenerateInfo();
             info.ty = null;
             info.roomType = RoomType.Normal;
-
-            List<Type> pools = null;
 
             if (generateConfig.normalRoomCount > curGenerateInfo.normalRoomCount)
             {
                 ++curGenerateInfo.normalRoomCount;
                 pools = generateConfig.normalPools;
             }
-            else if (generateConfig.bossRoomCount > curGenerateInfo.bossRoomCount)
-            {
-                ++curGenerateInfo.bossRoomCount;
-                pools = generateConfig.bossRoomPools;
-                info.roomType = RoomType.Boss;
-            }
-            else if (generateConfig.hiddenRoomCount > curGenerateInfo.hiddenRoomCount)
-            {
-                ++curGenerateInfo.hiddenRoomCount;
-                pools = generateConfig.hiddenRoomPools;
-                info.roomType = RoomType.Hidden;
-            }
-            else if (generateConfig.rewardRoomCount > curGenerateInfo.rewardRoomCount)
-            {
-                ++curGenerateInfo.rewardRoomCount;
-                pools = generateConfig.rewardRoomPools;
-                info.roomType = RoomType.Reward;
-            }
-            else if (generateConfig.shopRoomCount > curGenerateInfo.shopRoomCount)
-            {
-                ++curGenerateInfo.shopRoomCount;
-                pools = generateConfig.shopRoomPools;
-                info.roomType = RoomType.Shop;
-            }
 
             if (pools != null)
             {
-                int rnd = UnityEngine.Random.Range(0, pools.Count);
+                int rnd = Random(0, pools.Count);
                 info.ty = pools[rnd];
             }
-
 
             return info;
         }
 
-
-
-        public void StartGenerate(int x, int y, Vector3 basePosition)
+        void InitNewMap(Vector3 basePosition)
         {
-            if (!IsValidIndex(x, y))
-            {
-                Debug.LogError("x or y is invalid");
-                return;
-            }
-
-            if (MapSize.x > 256 || MapSize.x < 0 || MapSize.y > 256 || MapSize.y < 0)
-            {
-                Debug.LogError("MapSize is invalid");
-                return;
-            }
-
             curGenerateInfo = new RoomGenerateParam();
             roomList.Clear();
             usedGrid = 0;
@@ -164,13 +228,25 @@ namespace RogueLike
                     grid.rightDoor.transportPos = grid.rightDoor.position - new Vector3(0.6f, 0, 0);
                 }
             }
+        }
 
-            //init room
-            Room_Init initRoom = new Room_Init();
-            initRoom.Place(x, y, this);
-            usedGrid += initRoom.gridList.Count;
-            roomList.Add(initRoom);
-            initRoom.SetPosition(initRoom.gridList[0].position);
+        public void StartGenerate(int x, int y, Vector3 basePosition)
+        {
+            if (!IsValidIndex(x, y))
+            {
+                Debug.LogError("x or y is invalid");
+                return;
+            }
+
+            if (MapSize.x > 256 || MapSize.x < 0 || MapSize.y > 256 || MapSize.y < 0)
+            {
+                Debug.LogError("MapSize is invalid");
+                return;
+            }
+
+            InitNewMap(basePosition);
+            PlaceInitRoom(x, y);
+            
 
             //4 direction
             var dirOffset = GenDirList();
@@ -179,13 +255,23 @@ namespace RogueLike
             GenerateAt(x + dirOffset[2].x, y + dirOffset[2].y, 1);
             GenerateAt(x + dirOffset[3].x, y + dirOffset[3].y, 1);
 
-            while (suspendTask.Count > 0)
+            //generate normalRoom
+            int generateCount = 0;
+            while (suspendTask.Count > 0 && ++generateCount < 1000)
             {
-                int idx = UnityEngine.Random.Range(0, suspendTask.Count);
+                int idx = Random(0, suspendTask.Count);
                 var genTask = suspendTask[idx];
                 suspendTask.RemoveAt(idx);
                 GenerateAt(genTask.x, genTask.y, genTask.depth);
             }
+
+            PlaceHiddenRoom();
+
+            PlaceBossRoom();
+            PlaceShopRoom();
+            PlaceRewardRoom();
+            PlaceSuperHiddenRoom();
+
             AssociateDoors();
             SetRoomIndex();
         }
@@ -203,7 +289,7 @@ namespace RogueLike
             }
 
             //if too deep
-            if (depth > generateConfig.randomCutAtDeep && UnityEngine.Random.Range(1, depth) < generateConfig.cutParam)
+            if (depth > generateConfig.randomCutAtDeep && Random(1, depth) < generateConfig.cutParam)
             {
                 //depth - 3 : make it more easy to generate. Not sure is it good
                 suspendTask.Add(new SuspendTask() { x = x, y = y, depth = depth - 3 });
@@ -219,7 +305,7 @@ namespace RogueLike
 
             if (grid.owner == null)
             {
-                RoomGenerateInfo info = RandomOneRoom();
+                RoomGenerateInfo info = RandomFightRoom();
                 if (info.ty != null)
                 {
                     RoomNode room = (RoomNode)Activator.CreateInstance(info.ty);
@@ -313,10 +399,10 @@ namespace RogueLike
                 new Vector2Int(0, 1), new Vector2Int(0, -1), new Vector2Int(1, 0), new Vector2Int(-1, 0),
             };
 
-            for (int i = 0; i < 5; ++i)
+            for (int i = 0; i < 2; ++i)
             {
-                int idxA = UnityEngine.Random.Range(0, result.Count);
-                int idxB = UnityEngine.Random.Range(0, result.Count);
+                int idxA = Random(0, result.Count);
+                int idxB = Random(0, result.Count);
                 Vector2Int tmp = result[idxB];
                 result[idxB] = result[idxA];
                 result[idxA] = tmp;

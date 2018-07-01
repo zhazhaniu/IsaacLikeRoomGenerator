@@ -19,3 +19,21 @@ public class RoomInspectorEditor : Editor
         base.DrawDefaultInspector();
     }
 }
+
+[CustomEditor(typeof(DoorInspector))]
+public class DoorInspectorEditor : Editor
+{
+
+    public override void OnInspectorGUI()
+    {
+        DoorInspector door = target as DoorInspector;
+        if (door.doorData.associateDoor != null)
+        {
+            EditorGUILayout.ObjectField("AssociateDoor", door.doorData.associateDoor.transform, typeof(Transform), true);
+            EditorGUILayout.Vector3Field("Position", door.doorData.position);
+            EditorGUILayout.Vector3Field("TransportPos", door.doorData.transportPos);
+        }
+        
+        base.DrawDefaultInspector();
+    }
+}
