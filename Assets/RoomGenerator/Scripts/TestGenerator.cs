@@ -42,7 +42,7 @@ namespace RogueLike
 
             rg.generateConfig = generateConfig;
             rg.MapSize = new Vector2Int(32, 32);
-            rg.SetSeed("OZOZ".GetHashCode());
+            //rg.SetSeed("OZOZ".GetHashCode());
             rg.StartGenerate(15, 15, Vector3.zero);
         }
 

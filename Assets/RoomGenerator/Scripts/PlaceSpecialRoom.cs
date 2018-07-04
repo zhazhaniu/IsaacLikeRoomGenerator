@@ -31,6 +31,8 @@ namespace RogueLike
             usedGrid += initRoom.gridList.Count;
             roomList.Add(initRoom);
             initRoom.SetPosition(initRoom.gridList[0].position);
+            initRoom.RepositionDoors();
+            initRoom.CalculateTransportPos();
         }
 
         void PlaceShopRoom()
@@ -62,7 +64,8 @@ namespace RogueLike
                         usedGrid += room.gridList.Count;
                         roomList.Add(room);
                         room.SetPosition(room.gridList[0].position);
-                        room.MarkUnborderDoors();
+                        room.RepositionDoors();
+                        room.CalculateTransportPos();
                     }
 
                     if (generateConfig.shopRoomCount <= curGenerateInfo.shopRoomCount)
@@ -105,7 +108,8 @@ namespace RogueLike
                     usedGrid += room.gridList.Count;
                     roomList.Add(room);
                     room.SetPosition(room.gridList[0].position);
-                    room.MarkUnborderDoors();
+                    room.RepositionDoors();
+                    room.CalculateTransportPos();
                 }
 
                 if (generateConfig.bossRoomCount <= curGenerateInfo.bossRoomCount)
@@ -124,6 +128,7 @@ namespace RogueLike
         {
             RoomNode bossRoom = GetBossRoom();
             List<Type> pools = generateConfig.spHiddenRoomPools;
+            if (pools.Count < 1) return;
             RoomNode room = null;
 
             int rnd = UnityEngine.Random.Range(0, pools.Count);
@@ -183,9 +188,10 @@ namespace RogueLike
                 usedGrid += room.gridList.Count;
                 roomList.Add(room);
                 room.SetPosition(room.gridList[0].position);
-                room.MarkUnborderDoors();
+                room.RepositionDoors();
+                room.CalculateTransportPos();
             }
-            else 
+            else
             {
                 Debug.LogError("Generate SPHidden Room failed");
             }
@@ -219,7 +225,8 @@ namespace RogueLike
                         usedGrid += room.gridList.Count;
                         roomList.Add(room);
                         room.SetPosition(room.gridList[0].position);
-                        room.MarkUnborderDoors();
+                        room.RepositionDoors();
+                        room.CalculateTransportPos();
                     }
 
                     if (generateConfig.rewardRoomCount <= curGenerateInfo.rewardRoomCount)
@@ -243,7 +250,7 @@ namespace RogueLike
             SetRoomIndex();
 
             roomDistanceMap = new int[roomList.Count, roomList.Count];
-            
+
             int row = roomDistanceMap.GetLength(0);
             int col = roomDistanceMap.GetLength(1);
             for (int i = 0; i < row; ++i)
@@ -289,6 +296,8 @@ namespace RogueLike
         void PlaceHiddenRoom()
         {
             List<Type> pools = generateConfig.hiddenRoomPools;
+            if (pools.Count < 1) return;
+
             RoomNode room = null;
             int rnd = UnityEngine.Random.Range(0, pools.Count);
             room = (RoomNode)Activator.CreateInstance(pools[rnd]);
@@ -345,7 +354,7 @@ namespace RogueLike
                         {
                             tmpRoom.Revert();
                         }
-                        
+
                     }
                 }
             }
@@ -357,7 +366,8 @@ namespace RogueLike
                 usedGrid += room.gridList.Count;
                 roomList.Add(room);
                 room.SetPosition(room.gridList[0].position);
-                room.MarkUnborderDoors();
+                room.RepositionDoors();
+                room.CalculateTransportPos();
             }
             else
             {

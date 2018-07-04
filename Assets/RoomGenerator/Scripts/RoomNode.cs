@@ -76,7 +76,7 @@ namespace RogueLike
                     if (gridDesc[i, j])
                     {
                         var up = generator.GetGrid(x + i, y + j + 1);
-                        
+
                         if (up != null && up.owner != null && up.owner != this)
                         {
                             ++connectCount;
@@ -175,6 +175,7 @@ namespace RogueLike
             {
                 var grid = gridList[i];
                 grid.owner = null;
+                grid.upDoor.doorType = DoorType.Normal;
             }
 
             gridList = new List<Grid>();
@@ -221,6 +222,14 @@ namespace RogueLike
                         }
 
                         ApplyRoom(x - offsetX, y - offsetY, generator);
+                        MarkUnborderDoors();
+
+                        if (roomType != RoomType.Init && !CheckConnectable(generator))
+                        {
+                            Revert();
+                            return false;
+                        }
+
                         return true;
                     }
                 }
@@ -229,6 +238,11 @@ namespace RogueLike
             return false;
         }
 
+        public bool CheckConnectable(RoomGenerator generator)
+        {
+            var hset = generator.GetConnectedRoom(this);
+            return hset.Count > 0;
+        }
 
         public virtual void SetPosition(Vector3 pos)
         {
@@ -238,6 +252,25 @@ namespace RogueLike
         //some rooms may be in special shape
         public virtual void MarkUnborderDoors()
         {
+
+        }
+
+        public virtual void RepositionDoors()
+        {
+
+        }
+
+        public virtual void CalculateTransportPos()
+        {
+            for (int i = 0; i < gridList.Count; ++i)
+            {
+                var grid = gridList[i];
+                //door transport pos
+                grid.upDoor.transportPos = grid.upDoor.position - new Vector3(0, 0.6f, 0);
+                grid.downDoor.transportPos = grid.downDoor.position + new Vector3(0, 0.6f, 0);
+                grid.leftDoor.transportPos = grid.leftDoor.position + new Vector3(0.6f, 0, 0);
+                grid.rightDoor.transportPos = grid.rightDoor.position - new Vector3(0.6f, 0, 0);
+            }
 
         }
     }

@@ -52,17 +52,16 @@ namespace RogueLike
         public RoomGenerateParam generateConfig;
         RoomGenerateParam curGenerateInfo;
 
-        //Mix DFS & BFS
-        List<SuspendTask> suspendTask = new List<SuspendTask>();
         System.Random random = null;
 
         public RoomGenerator()
         {
-            SetSeed(DateTime.Now.Second + DateTime.Now.Millisecond);
+            SetSeed(System.Environment.TickCount % 10000);
         }
 
         public void SetSeed(int seed)
         {
+            Debug.Log("Room Generator set seed:" + seed);
             random = new System.Random(seed);
         }
 
@@ -123,15 +122,15 @@ namespace RogueLike
                 return;
             }
 
-            Grid up = GetGrid(grid.index.x, grid.index.y + 1);
-            Grid down = GetGrid(grid.index.x, grid.index.y - 1);
-            Grid left = GetGrid(grid.index.x - 1, grid.index.y);
-            Grid right = GetGrid(grid.index.x + 1, grid.index.y);
+            Grid up = grid.upDoor.doorType != DoorType.None ? GetGrid(grid.index.x + 1, grid.index.y) : null;
+            Grid down = grid.downDoor.doorType != DoorType.None ? GetGrid(grid.index.x - 1, grid.index.y) : null;
+            Grid left = grid.leftDoor.doorType != DoorType.None ? GetGrid(grid.index.x, grid.index.y - 1) : null;
+            Grid right = grid.rightDoor.doorType != DoorType.None ? GetGrid(grid.index.x, grid.index.y + 1) : null;
 
-            if (up != null && up.owner != null && !hset.Contains(up.owner)) hset.Add(up.owner);
-            if (down != null && down.owner != null && !hset.Contains(down.owner)) hset.Add(down.owner);
-            if (left != null && left.owner != null && !hset.Contains(left.owner)) hset.Add(left.owner);
-            if (right != null && right.owner != null && !hset.Contains(right.owner)) hset.Add(right.owner);
+            if (up != null && up.downDoor.doorType != DoorType.None && up.owner != null && up.owner != grid.owner && !hset.Contains(up.owner)) hset.Add(up.owner);
+            if (down != null && down.upDoor.doorType != DoorType.None && down.owner != null && down.owner != grid.owner && !hset.Contains(down.owner)) hset.Add(down.owner);
+            if (left != null && left.rightDoor.doorType != DoorType.None && left.owner != null && left.owner != grid.owner && !hset.Contains(left.owner)) hset.Add(left.owner);
+            if (right != null && right.leftDoor.doorType != DoorType.None && right.owner != null && right.owner != grid.owner && !hset.Contains(right.owner)) hset.Add(right.owner);
         }
 
         //Get all empty grid beyond the room
@@ -163,7 +162,7 @@ namespace RogueLike
             return list;
         }
 
-        HashSet<RoomNode> GetConnectedRoom(RoomNode room)
+        public HashSet<RoomNode> GetConnectedRoom(RoomNode room)
         {
             HashSet<RoomNode> hset = new HashSet<RoomNode>();
             for (int i = 0; i < room.gridList.Count; ++i)
@@ -183,7 +182,6 @@ namespace RogueLike
 
             if (generateConfig.normalRoomCount > curGenerateInfo.normalRoomCount)
             {
-                ++curGenerateInfo.normalRoomCount;
                 pools = generateConfig.normalPools;
             }
 
@@ -220,12 +218,6 @@ namespace RogueLike
                     grid.downDoor.position = grid.position + new Vector3(0, -Data.GroundSize.y * 0.5f - Data.DoorHeight * 0.5f, 0);
                     grid.leftDoor.position = grid.position + new Vector3(-Data.GroundSize.x * 0.5f - Data.DoorHeight * 0.5f, 0, 0);
                     grid.rightDoor.position = grid.position + new Vector3(Data.GroundSize.x * 0.5f + Data.DoorHeight * 0.5f, 0, 0);
-
-                    //door transport pos
-                    grid.upDoor.transportPos = grid.upDoor.position - new Vector3(0, 0.6f, 0);
-                    grid.downDoor.transportPos = grid.downDoor.position + new Vector3(0, 0.6f, 0);
-                    grid.leftDoor.transportPos = grid.leftDoor.position + new Vector3(0.6f, 0, 0);
-                    grid.rightDoor.transportPos = grid.rightDoor.position - new Vector3(0.6f, 0, 0);
                 }
             }
         }
@@ -246,7 +238,7 @@ namespace RogueLike
 
             InitNewMap(basePosition);
             PlaceInitRoom(x, y);
-            
+
 
             //4 direction
             var dirOffset = GenDirList();
@@ -257,12 +249,18 @@ namespace RogueLike
 
             //generate normalRoom
             int generateCount = 0;
-            while (suspendTask.Count > 0 && ++generateCount < 1000)
+            while (generateConfig.normalRoomCount > curGenerateInfo.normalRoomCount && ++generateCount < 1000)
             {
-                int idx = Random(0, suspendTask.Count);
-                var genTask = suspendTask[idx];
-                suspendTask.RemoveAt(idx);
-                GenerateAt(genTask.x, genTask.y, genTask.depth);
+                var canConnect = GetConnectableGrids();
+                for (int i = 0; i < canConnect.Count; ++i)
+                {
+                    var g = canConnect[i];
+                    GenerateAt(g.index.x, g.index.y, 1);
+                    if (generateConfig.normalRoomCount <= curGenerateInfo.normalRoomCount)
+                    {
+                        break;
+                    }
+                }
             }
 
             PlaceHiddenRoom();
@@ -291,8 +289,6 @@ namespace RogueLike
             //if too deep
             if (depth > generateConfig.randomCutAtDeep && Random(1, depth) < generateConfig.cutParam)
             {
-                //depth - 3 : make it more easy to generate. Not sure is it good
-                suspendTask.Add(new SuspendTask() { x = x, y = y, depth = depth - 3 });
                 return 1;
             }
 
@@ -312,10 +308,12 @@ namespace RogueLike
                     room.roomType = info.roomType;
                     if (room.Place(x, y, this))
                     {
+                        ++curGenerateInfo.normalRoomCount;
                         usedGrid += room.gridList.Count;
                         roomList.Add(room);
                         room.SetPosition(room.gridList[0].position);
-                        room.MarkUnborderDoors();
+                        room.RepositionDoors();
+                        room.CalculateTransportPos();
                     }
                 }
             }

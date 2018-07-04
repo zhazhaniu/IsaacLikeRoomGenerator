@@ -25,8 +25,10 @@ namespace RogueLike
 
         public static Dictionary<DoorType, string> doorRes = new Dictionary<DoorType, string>()
         {
+            {DoorType.None, "Doors/NormalDoor" },
             {DoorType.Normal, "Doors/NormalDoor" },
             {DoorType.Hidden, "Doors/NormalDoor" },
+            {DoorType.SuperHidden, "Doors/NormalDoor" },
             {DoorType.Shop, "Doors/NormalDoor" },
             {DoorType.Reward, "Doors/NormalDoor" },
             {DoorType.Challenge, "Doors/NormalDoor" },
